@@ -29,9 +29,9 @@ export function executeCommand(title: string, command: Array<string>, options: a
     });
 }
 
-export function checkOutput(command: Array<string>): Promise<string> {
+export function checkOutput(command: Array<string>, options: any): Promise<string> {
     return new Promise<string>((resolve, reject) => {
-        execFile(command[0], command.slice(1), (error, stdout, stderr) => {
+        execFile(command[0], command.slice(1), options, (error, stdout, stderr) => {
             if (error)
                 reject("command finished with an error: " + error + " stderr: " + stderr);
             else
