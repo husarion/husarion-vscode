@@ -2,9 +2,13 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as os from 'os';
+import * as wget from './wget';
 import { executeCommand, checkOutput } from './processtool';
 
 var extensionPath: string
+
+const HUSARION_TOOLS_URL = "https://cdn.atomshare.net/b10c187afa42ac37cd4fc37ff7049b6499c2afc5/HusarionTools-v1.exe";
+const HUSARION_TOOLS_VERSION = "1";
 
 async function getVarsInfo(): Promise<Map<String, Array<String>>> {
     let out = await checkOutput([getToolsPath() + "ninja", "-C", vscode.workspace.rootPath, "printvars"], getExecuteOptions());
@@ -23,13 +27,55 @@ async function getVarsInfo(): Promise<Map<String, Array<String>>> {
 }
 
 function getToolsPath() {
-    return 'c:/HusarionTools/bin/';
-    // return extensionPath + '/HusarionTools/bin/';
+    if (process.platform == "win32")
+        return extensionPath + '/HusarionTools/bin/';
+    else
+        return "";
+}
+
+function downloadFile(channel: vscode.OutputChannel, url: string, target: string) {
+    return new Promise(function(resolve, reject) {
+        channel.append("Downloading " + url + " ");
+        let download = wget.download(url, target);
+        var lastProgress = 0;
+        download.on('progress', function (progress) {
+            if (Math.floor(lastProgress * 40) != Math.floor(progress * 40)) {
+                channel.append(".");
+                lastProgress = progress;
+            }
+        });
+        download.on('error', function(err) {
+            channel.append("\nError: " + err);
+            reject();
+        });
+        download.on('end', function(output) {
+            channel.append(" OK\n");
+            resolve();
+        });
+    });
+}
+
+async function downloadToolsIfNeeded() {
+    if (process.platform != "win32") return;
+
+    let channel = vscode.window.createOutputChannel("Installing Husarion tools");
+    channel.show(true);
+    const versionFile = extensionPath + "/version.txt";
+    if (!fs.existsSync(versionFile) || fs.readFileSync(versionFile).toString("utf-8") != HUSARION_TOOLS_VERSION) {
+        const installerPath = extensionPath + "/HusarionTools.exe";
+        await downloadFile(channel, HUSARION_TOOLS_URL, installerPath);
+        channel.append("Extracting...\n");
+        await executeCommand("Extract Husarion Tools", [installerPath, "-y", "-o" + extensionPath], {}, true);
+        channel.append("Done\n");
+        fs.unlinkSync(installerPath);
+        fs.writeFile(versionFile, HUSARION_TOOLS_VERSION);
+    }
 }
 
 function getExecuteOptions() {
     var env = JSON.parse(JSON.stringify(process.env));
-    env['Path'] += ';' + getToolsPath();
+    if (process.platform == "win32")
+        env['Path'] += ';' + getToolsPath();
     return { cwd: vscode.workspace.rootPath, env: env };
 }
 
@@ -171,6 +217,8 @@ async function changeHusarionProjectVariable(context: vscode.ExtensionContext) {
 export async function activate(context: vscode.ExtensionContext) {
     const extension = vscode.extensions.getExtension("husarion.husarion");
     extensionPath = extension.extensionPath;
+
+    await downloadToolsIfNeeded();
 
     context.subscriptions.push(vscode.commands.registerCommand('extension.createHusarionProject', async () => {
         var cmakeListsPath = vscode.workspace.rootPath + '/CMakeLists.txt';

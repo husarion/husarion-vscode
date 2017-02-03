@@ -1,3 +1,6 @@
 out
 node_modules
 /sdk
+/HusarionTools
+/*.vsix
+/version.txt
