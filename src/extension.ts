@@ -238,10 +238,10 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(vscode.commands.registerCommand('extension.flashCORE2', () => {
         let terminal = vscode.window.createTerminal("Flash");
         terminal.show(true);
-        // windows:
-        terminal.sendText("set PATH=%PATH%;" + getToolsPath());  
-        terminal.sendText(getToolsPath() + "ninja flash");
-        //executeCommand("Flash", [getToolsPath() + "make", "flash"], getExecuteOptions()).catch((err) => { });
+        if (process.platform == "win32")
+            terminal.sendText("set PATH=%PATH%;\"" + getToolsPath() + "\"");  
+
+        terminal.sendText("\"" + getToolsPath() + "ninja\" flash");
     }));
 
     if (fs.existsSync(vscode.workspace.rootPath + '/CMakeLists.txt')) {
