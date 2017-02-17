@@ -4,3 +4,4 @@ node_modules
 /HusarionTools
 /*.vsix
 /version.txt
+/build

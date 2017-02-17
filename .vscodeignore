@@ -10,3 +10,6 @@ vsc-extension-quickstart.md
 HusarionTools/**
 version.txt
 *.vsix
+*.cpp
+build/**
+build.sh
