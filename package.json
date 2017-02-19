@@ -2,7 +2,7 @@
   "name": "husarion",
   "displayName": "Husarion",
   "description": "Create apps for Husarion devices",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "publisher": "husarion",
   "engines": {
     "vscode": "^1.9.1"

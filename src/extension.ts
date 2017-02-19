@@ -28,7 +28,7 @@ async function getVarsInfo(): Promise<Map<String, Array<String>>> {
 
 function getToolsPath() {
     if (process.platform == "win32")
-        return extensionPath + '/HusarionTools/bin/';
+        return extensionPath + '/../../HusarionTools/bin/';
     else
         return "";
 }
@@ -60,12 +60,12 @@ async function downloadToolsIfNeeded() {
 
     let channel = vscode.window.createOutputChannel("Installing Husarion tools");
     channel.show(true);
-    const versionFile = extensionPath + "/version.txt";
+    const versionFile = extensionPath + "/../../HusarionTools-version.txt";
     if (!fs.existsSync(versionFile) || fs.readFileSync(versionFile).toString("utf-8") != HUSARION_TOOLS_VERSION) {
         const installerPath = extensionPath + "/HusarionTools.exe";
         await downloadFile(channel, HUSARION_TOOLS_URL, installerPath);
         channel.append("Extracting...\n");
-        await executeCommand("Extract Husarion Tools", [installerPath, "-y", "-o" + extensionPath], {}, true);
+        await executeCommand("Extract Husarion Tools", [installerPath, "-y", "-o" + extensionPath + "/../../"], {}, true);
         channel.append("Done\n");
         fs.unlinkSync(installerPath);
         fs.writeFile(versionFile, HUSARION_TOOLS_VERSION);
@@ -89,7 +89,7 @@ async function reloadProjectInfo(context: vscode.ExtensionContext) {
                 "-DBOARD_TYPE=core2",
                 "-DHFRAMEWORK_PATH=" + extensionPath + "/sdk"], getExecuteOptions());
     } else {
-        await executeCommand("Husarion: reload build", [getToolsPath() + "cmake", "."], getExecuteOptions(), true);
+        await executeCommand("Husarion: reload build", [getToolsPath() + "cmake", ".", "-DHFRAMEWORK_PATH=" + extensionPath + "/sdk"], getExecuteOptions(), true);
     }
 
     let vars = await getVarsInfo();
