@@ -3,12 +3,13 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as wget from './wget';
+import * as path from 'path';
 import { executeCommand, checkOutput } from './processtool';
 
 var extensionPath: string
 
-const HUSARION_TOOLS_URL = "https://cdn.atomshare.net/34b68bc5fd4522dbc2b1ceb319992ad164550f26/HusarionTools-v2.exe";
-const HUSARION_TOOLS_VERSION = "2";
+const HUSARION_TOOLS_URL = "https://cdn.atomshare.net/cc70b0184feefaf7ead3741c58f98200cf8e017b/HusarionTools-v3.exe";
+const HUSARION_TOOLS_VERSION = "3";
 
 async function getVarsInfo(): Promise<Map<String, Array<String>>> {
     let out = await checkOutput([getToolsPath() + "ninja", "-C", vscode.workspace.rootPath, "printvars"], getExecuteOptions());
@@ -28,7 +29,7 @@ async function getVarsInfo(): Promise<Map<String, Array<String>>> {
 
 function getToolsPath() {
     if (process.platform == "win32")
-        return extensionPath + '/../../HusarionTools/bin/';
+        return path.normalize(extensionPath + '/../../HusarionTools/bin/');
     else
         return "";
 }
@@ -89,7 +90,8 @@ async function reloadProjectInfo(context: vscode.ExtensionContext) {
                 "-DBOARD_TYPE=core2",
                 "-DHFRAMEWORK_PATH=" + extensionPath + "/sdk"], getExecuteOptions());
     } else {
-        await executeCommand("Husarion: reload build", [getToolsPath() + "cmake", ".", "-DHFRAMEWORK_PATH=" + extensionPath + "/sdk"], getExecuteOptions(), true);
+        await executeCommand("Husarion: reload build", [getToolsPath() + "cmake", ".", 
+                "-DHFRAMEWORK_PATH=" + extensionPath + "/sdk"], getExecuteOptions(), true);
     }
 
     let vars = await getVarsInfo();
@@ -154,6 +156,14 @@ async function reloadProjectInfo(context: vscode.ExtensionContext) {
     let debuggerInfo = {
         "MIMode": "gdb"
     };
+    let mainExeName = vars["main_executable"][0];
+
+    fs.writeFileSync(vscodeDir + "/debugger.bat",
+`set PATH=${getToolsPath()};%PATH%
+cd ${vscode.workspace.rootPath} || exit 1
+start /wait st-flash write ${mainExeName}.bin 0x08010000 || exit 1
+start st-util
+arm-none-eabi-gdb %*`);
 
     fs.writeFileSync(vscodeDir + "/launch.json", JSON.stringify({
         "version": "0.2.0",
@@ -162,13 +172,15 @@ async function reloadProjectInfo(context: vscode.ExtensionContext) {
                 "name": "Flash to CORE2",
                 "type": "cppdbg",
                 "request": "launch",
-                "program": vars["main_executable"][0] + ".elf",
+                "program": "${workspaceRoot}/" + mainExeName + ".elf",
                 "args": [],
                 "stopAtEntry": false,
                 "cwd": "${workspaceRoot}",
                 "env": {
                     "GDBWRAPPER_FLASH": "true",   
                 },
+                "miDebuggerPath": vscodeDir + "/debugger.bat",
+                "miDebuggerServerAddress": "localhost:4242",
                 "externalConsole": true,
                 "linux": debuggerInfo,
                 "windows": debuggerInfo,

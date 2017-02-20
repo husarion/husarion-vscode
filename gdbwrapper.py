@@ -13,10 +13,10 @@ if not tty_fn:
 tty = open(tty_fn, 'rw')
 
 if os.environ.get('GDBWRAPPER_FLASH') == 'true':
-    if subprocess.call(['make', 'flash'], stdin=tty, stdout=tty, stderr=tty) == 0:
+    if subprocess.call(['make'], stdin=tty, stdout=tty, stderr=tty) == 0:
         sys.exit(1)
 
-gdb_cmd = 'target remote | openocd -c "gdb_port pipe; log_output %s"' % tty_fn
+gdb_cmd = 'target remote localhosts"' % tty_fn
 args = ['gdb', '--eval-command', gdb_cmd]
 
 sys.exit(subprocess.call(args))
