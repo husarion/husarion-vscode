@@ -80,7 +80,14 @@ function getExecuteOptions() {
     return { cwd: vscode.workspace.rootPath, env: env };
 }
 
-async function reloadProjectInfo(context: vscode.ExtensionContext) {
+async function reloadProjectInfo(context: vscode.ExtensionContext, hard: boolean = false) {
+    if (hard) {
+        for (let name of ["CMakeCache.txt", "build.ninja", "rules.ninja"]) {
+            let path = vscode.workspace.rootPath + "/" + name;
+            if (fs.existsSync(path)) fs.unlink(path);
+        }
+    }
+
     if (!fs.existsSync(vscode.workspace.rootPath + "/CMakeCache.txt")) {
         await executeCommand("Husarion: initialize build",
             [getToolsPath() + "cmake", ".",
@@ -251,7 +258,7 @@ export async function activate(context: vscode.ExtensionContext) {
         await setupProject(context);
     }));
 
-    context.subscriptions.push(vscode.commands.registerCommand('extension.reloadHusarionProject', () => reloadProjectInfo(context)));
+    context.subscriptions.push(vscode.commands.registerCommand('extension.reloadHusarionProject', () => reloadProjectInfo(context, true)));
     context.subscriptions.push(vscode.commands.registerCommand('extension.changeHusarionProjectVariable', () => changeHusarionProjectVariable(context)));
     context.subscriptions.push(vscode.commands.registerCommand('extension.flashCORE2', () => {
         let terminal = vscode.window.createTerminal("Flash", process.platform == "win32" ? process.env.windir + "\\system32\\cmd.exe" : undefined);
