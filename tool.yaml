@@ -1,2 +1,0 @@
-architectures: [win]
-binaries: [stlink-gdb-wrapper]
