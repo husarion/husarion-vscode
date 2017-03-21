@@ -230,9 +230,9 @@ async function changeHusarionProjectVariable(context: vscode.ExtensionContext) {
     if (resp.label == "HFRAMEWORK_PATH") {
         await reconfigure(resp.label, await vscode.window.showInputBox({ "prompt": "Path to hFramework" }));
     } else if (resp.label == "BOARD_TYPE") {
-        await reconfigure(resp.label, await vscode.window.showQuickPick(["core2", "robocore"]));
+        await reconfigure(resp.label, await vscode.window.showQuickPick(["core2", "core2mini", "robocore"]));
     } else if (resp.label == "BOARD_VERSION") {
-        await reconfigure(resp.label, await vscode.window.showQuickPick(["1.0.0"]));
+        await reconfigure(resp.label, await vscode.window.showQuickPick(["1.0.0", "0.1.0", "0.2.0"]));
     } else if (resp.label == "DEBUG") {
         await reconfigure(resp.label, await vscode.window.showQuickPick(["true", "false"]));
     }
