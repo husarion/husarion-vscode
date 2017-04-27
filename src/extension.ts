@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as wget from './wget';
 import * as path from 'path';
+import { spawnSync } from 'child_process';
 import { executeCommand, checkOutput } from './processtool';
 
 var extensionPath: string
@@ -57,7 +58,15 @@ function downloadFile(channel: vscode.OutputChannel, url: string, target: string
 }
 
 async function downloadToolsIfNeeded() {
-    if (process.platform != "win32") return;
+    if (process.platform != "win32") {
+        // for other platforms, we only check if the tools are installed
+        var requiredTools = ["arm-none-eabi-gcc", "cmake", "ninja"];
+        var notOk = requiredTools.filter((name) => spawnSync("which " + name, {shell: true}).status != 0);
+        if (notOk.length > 0) {
+            vscode.window.showErrorMessage("To use Husarion extension, install the following programs: " + notOk.join(", ") + " (see docs.husarion.com)");
+        }
+        return;
+    }
 
     let channel = vscode.window.createOutputChannel("Installing Husarion tools");
     channel.show(true);
