@@ -17,6 +17,7 @@
     "onCommand:extension.changeHusarionProjectVariable",
     "workspaceContains:CMakeLists.txt"
   ],
+  "icon": "logo.png",
   "main": "./out/src/extension",
   "contributes": {
     "commands": [
