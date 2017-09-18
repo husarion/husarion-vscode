@@ -208,7 +208,7 @@ start st-util
 arm-none-eabi-gdb %*`);
     } else {
         const termCommand = (process.platform == "darwin") ?
-         `osascript -e 'tell application "Terminal" to do script "cat ${vscode.workspace.rootPath}/.term"; exit'` : 
+         `osascript -e 'tell application "Terminal" to activate do script "cat ${vscode.workspace.rootPath}/.term"'` : 
          `x-terminal-emulator -e "cat $PWD/.term" &`;
         fs.writeFileSync(vscodeDir + "/debugger.bat",
         `#!/bin/bash
@@ -218,6 +218,7 @@ arm-none-eabi-gdb %*`);
         ${termCommand}
 
         (
+            echo "Flashing application..."
             st-flash write ${mainExeName}.bin 0x08010000
             if [ $? != 0 ]; then
                 echo st-flash failed
