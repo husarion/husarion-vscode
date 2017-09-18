@@ -207,11 +207,16 @@ start /wait st-flash write ${mainExeName}.bin 0x08010000 || exit 1
 start st-util
 arm-none-eabi-gdb %*`);
     } else {
+        const termCommand = (process.platform == "darwin") ?
+         `osascript -e 'tell application "Terminal" to do script "cat ${vscode.workspace.rootPath}/.term"; exit'` : 
+         `x-terminal-emulator -e "cat $PWD/.term" &`;
         fs.writeFileSync(vscodeDir + "/debugger.bat",
         `#!/bin/bash
         cd ${vscode.workspace.rootPath} || exit 1
+        rm .term
         mkfifo .term
-        x-terminal-emulator -e "cat $PWD/.term" &
+        ${termCommand}
+
         (
             st-flash write ${mainExeName}.bin 0x08010000
             if [ $? != 0 ]; then
@@ -223,6 +228,7 @@ arm-none-eabi-gdb %*`);
         st-util & pid=$!
         trap "kill $pid" EXIT
         sleep 0.5
+        rm .term
         arm-none-eabi-gdb "$@"`);
         fs.chmodSync(vscodeDir + "/debugger.bat", 0o755);
     }
