@@ -2,7 +2,7 @@
   "name": "husarion",
   "displayName": "Husarion",
   "description": "Create apps for Husarion devices",
-  "version": "1.4.5",
+  "version": "1.5.0",
   "publisher": "husarion",
   "engines": {
     "vscode": "^1.9.1"
@@ -32,6 +32,10 @@
       {
         "command": "extension.changeHusarionProjectVariable",
         "title": "Change Husarion project variable"
+      },
+      {
+        "command": "extension.consoleCORE2",
+        "title": "Open CORE2 serial console"
       },
       {
         "command": "extension.flashCORE2",

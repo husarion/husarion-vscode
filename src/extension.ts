@@ -12,6 +12,11 @@ var extensionPath: string
 const HUSARION_TOOLS_URL = "https://cdn.atomshare.net/cc70b0184feefaf7ead3741c58f98200cf8e017b/HusarionTools-v3.exe";
 const HUSARION_TOOLS_VERSION = "3";
 
+class Extension {
+    public context: vscode.ExtensionContext;
+    public statusBarReady: boolean;
+};
+
 async function getVarsInfo(): Promise<Map<String, Array<String>>> {
     let out = await checkOutput([getToolsPath() + "ninja", "-C", vscode.workspace.rootPath, "printvars"], getExecuteOptions());
     var vars = new Map<String, Array<String>>();
@@ -89,14 +94,34 @@ function getExecuteOptions() {
     return { cwd: vscode.workspace.rootPath, env: env };
 }
 
-async function reloadProjectInfo(context: vscode.ExtensionContext, hard: boolean = false) {
+function initStatusBar(self: Extension) {
+    self.statusBarReady = true;
+    const icons = [
+        ["$(cloud-upload)", "Flash Husarion project", "extension.flashCORE2"],
+        ["$(terminal)", "Open CORE2 serial console", "extension.consoleCORE2"],
+    ];
+
+    for (var i=0; i < icons.length; i++) {
+        let item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100 + i);
+        item.text = icons[i][0];
+        item.tooltip = icons[i][1];
+        item.command = icons[i][2];
+        item.show();
+        self.context.subscriptions.push(item);
+    }
+}
+
+async function reloadProjectInfo(self: Extension, hard: boolean = false) {
     if (hard) {
         for (let name of ["CMakeCache.txt", "build.ninja", "rules.ninja"]) {
             let path = vscode.workspace.rootPath + "/" + name;
-            if (fs.existsSync(path)) fs.unlink(path);
+            if (fs.existsSync(path)) fs.unlinkSync(path);
         }
     }
 
+    if (!self.statusBarReady)
+        initStatusBar(self);
+    
     if (!fs.existsSync(vscode.workspace.rootPath + "/CMakeCache.txt")) {
         await executeCommand("Husarion: initialize build",
             [getToolsPath() + "cmake", ".",
@@ -174,12 +199,33 @@ async function reloadProjectInfo(context: vscode.ExtensionContext, hard: boolean
     };
     let mainExeName = vars["main_executable"][0];
 
-    fs.writeFileSync(vscodeDir + "/debugger.bat",
+    if (process.platform == "win32") {
+        fs.writeFileSync(vscodeDir + "/debugger.bat",
 `set PATH=${getToolsPath()};%PATH%
 cd ${vscode.workspace.rootPath} || exit 1
 start /wait st-flash write ${mainExeName}.bin 0x08010000 || exit 1
 start st-util
 arm-none-eabi-gdb %*`);
+    } else {
+        fs.writeFileSync(vscodeDir + "/debugger.bat",
+        `#!/bin/bash
+        cd ${vscode.workspace.rootPath} || exit 1
+        mkfifo .term
+        x-terminal-emulator -e "cat $PWD/.term" &
+        (
+            st-flash write ${mainExeName}.bin 0x08010000
+            if [ $? != 0 ]; then
+                echo st-flash failed
+                # hold fd
+                sleep 10 & 
+                exit 1
+            fi) > .term 2>&1 || exit 1
+        st-util & pid=$!
+        trap "kill $pid" EXIT
+        sleep 0.5
+        arm-none-eabi-gdb "$@"`);
+        fs.chmodSync(vscodeDir + "/debugger.bat", 0o755);
+    }
 
     fs.writeFileSync(vscodeDir + "/launch.json", JSON.stringify({
         "version": "0.2.0",
@@ -205,7 +251,7 @@ arm-none-eabi-gdb %*`);
     }))
 }
 
-async function setupProject(context: vscode.ExtensionContext) {
+async function setupProject(self: Extension) {
     console.log(vscode.workspace.rootPath);
     if (!fs.existsSync(vscode.workspace.rootPath + "/main.cpp")) {
         fs.writeFileSync(vscode.workspace.rootPath + "/main.cpp", fs.readFileSync(extensionPath + "/sdk/project_template/main.cpp"))
@@ -221,14 +267,14 @@ async function setupProject(context: vscode.ExtensionContext) {
         fs.writeFileSync(vscode.workspace.rootPath + "/.gitignore", gitignore);
     }
 
-    await reloadProjectInfo(context);
+    await reloadProjectInfo(self);
 }
 
 async function reconfigure(name: string, value: string) {
     await executeCommand("Husarion: reconfigure", [getToolsPath() + "cmake", ".", "-D" + name + "=" + value], getExecuteOptions());
 }
 
-async function changeHusarionProjectVariable(context: vscode.ExtensionContext) {
+async function changeHusarionProjectVariable(self: Extension) {
     let resp = await vscode.window.showQuickPick([
         { description: "SDK path", label: "HFRAMEWORK_PATH" },
         { description: "Target board type", label: "BOARD_TYPE" },
@@ -245,41 +291,62 @@ async function changeHusarionProjectVariable(context: vscode.ExtensionContext) {
     } else if (resp.label == "DEBUG") {
         await reconfigure(resp.label, await vscode.window.showQuickPick(["true", "false"]));
     }
-    await reloadProjectInfo(context);
+    await reloadProjectInfo(self);
+}
+
+function openTerminal(name: string, ninjaCmd: string) {
+    let defaultShell = process.platform == "win32" ? process.env.windir + "\\system32\\cmd.exe" : undefined;
+    let terminal = vscode.window.createTerminal(name, defaultShell);
+    terminal.show(true);
+    if (process.platform == "win32") {
+        terminal.sendText("set PATH=%PATH%;" + getToolsPath());  
+        if (ninjaCmd)
+            terminal.sendText("\"" + getToolsPath() + "ninja\" " + ninjaCmd);
+    } else {
+        if (ninjaCmd)
+            terminal.sendText("ninja " + ninjaCmd);
+    }
 }
 
 export async function activate(context: vscode.ExtensionContext) {
     const extension = vscode.extensions.getExtension("husarion.husarion");
     extensionPath = extension.extensionPath;
+    let self = new Extension();
+    self.context = context;
+    self.statusBarReady = false;
 
     await downloadToolsIfNeeded();
 
     context.subscriptions.push(vscode.commands.registerCommand('extension.createHusarionProject', async () => {
+        if (!vscode.workspace.rootPath) {
+            vscode.window.showErrorMessage("Please open a project directory first (use File > Open).");
+            return;
+        }
+
         var cmakeListsPath = vscode.workspace.rootPath + '/CMakeLists.txt';
 
         if (fs.existsSync(cmakeListsPath)) {
             vscode.window.showErrorMessage("CMakeLists.txt already exists in current workspace.");
             await vscode.commands.executeCommand("vscode.open", vscode.Uri.parse("file://" + cmakeListsPath));
-            await reloadProjectInfo(context);
+            await reloadProjectInfo(self);
             return;
         }
 
-        await setupProject(context);
+        await setupProject(self);
     }));
 
-    context.subscriptions.push(vscode.commands.registerCommand('extension.reloadHusarionProject', () => reloadProjectInfo(context, true)));
-    context.subscriptions.push(vscode.commands.registerCommand('extension.changeHusarionProjectVariable', () => changeHusarionProjectVariable(context)));
+
+    context.subscriptions.push(vscode.commands.registerCommand('extension.reloadHusarionProject', () => reloadProjectInfo(self, true)));
+    context.subscriptions.push(vscode.commands.registerCommand('extension.changeHusarionProjectVariable', () => changeHusarionProjectVariable(self)));
     context.subscriptions.push(vscode.commands.registerCommand('extension.flashCORE2', () => {
-        let terminal = vscode.window.createTerminal("Flash", process.platform == "win32" ? process.env.windir + "\\system32\\cmd.exe" : undefined);
-        terminal.show(true);
-        // windows:
-        if (process.platform == "win32")
-            terminal.sendText("set PATH=%PATH%;" + getToolsPath());  
-        terminal.sendText("\"" + getToolsPath() + "ninja\" flash");
+        openTerminal("Flash", "flash");
+    }));
+    context.subscriptions.push(vscode.commands.registerCommand('extension.consoleCORE2', () => {
+        openTerminal("Serial console", "console");
     }));
 
     if (fs.existsSync(vscode.workspace.rootPath + '/CMakeLists.txt')) {
-        reloadProjectInfo(context);
+        reloadProjectInfo(self);
     }
 }
 
