@@ -65,7 +65,7 @@ function downloadFile(channel: vscode.OutputChannel, url: string, target: string
 async function downloadToolsIfNeeded() {
     if (process.platform != "win32") {
         // for other platforms, we only check if the tools are installed
-        var requiredTools = ["arm-none-eabi-gcc", "cmake", "ninja"];
+        var requiredTools = ["arm-none-eabi-gcc", "arm-none-eabi-gdb", "cmake", "ninja"];
         var notOk = requiredTools.filter((name) => spawnSync("which " + name, {shell: true}).status != 0);
         if (notOk.length > 0) {
             vscode.window.showErrorMessage("To use Husarion extension, install the following programs: " + notOk.join(", ") + " (see docs.husarion.com)");
@@ -131,8 +131,12 @@ async function reloadProjectInfo(self: Extension, hard: boolean = false) {
                 "-DBOARD_TYPE=core2",
                 "-DHFRAMEWORK_PATH=" + extensionPath + "/sdk"], getExecuteOptions());
     } else {
-        await executeCommand("Husarion: reload build", [getToolsPath() + "cmake", ".", 
-                "-DHFRAMEWORK_PATH=" + extensionPath + "/sdk"], getExecuteOptions(), true);
+        let cmakeCache = fs.readFileSync(vscode.workspace.rootPath + "/CMakeCache.txt");
+        let usesBuiltinSdk = cmakeCache.toString("utf-8").split("\n")
+            .filter((line) => line.startsWith("HFRAMEWORK_PATH:") && line.indexOf(".vscode") != -1).length != 0;
+
+        await executeCommand("Husarion: reload build", [getToolsPath() + "cmake", "."].concat(
+                usesBuiltinSdk ? ["-DHFRAMEWORK_PATH=" + extensionPath + "/sdk"] : []), getExecuteOptions(), true);
     }
 
     let vars = await getVarsInfo();
@@ -213,7 +217,7 @@ arm-none-eabi-gdb %*`);
         fs.writeFileSync(vscodeDir + "/debugger.bat",
         `#!/bin/bash
         cd ${vscode.workspace.rootPath} || exit 1
-        rm .term
+        rm .term 2>/dev/null
         mkfifo .term
         ${termCommand}
 
