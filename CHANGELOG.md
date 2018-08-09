@@ -4,6 +4,7 @@ All notable changes to the "husarion" extension for VSCode.
 The changelog to hFramework library is available [here](https://github.com/husarion/hFramework/blob/master/CHANGELOG.md)
 
 ## [Unreleased]
+- Improved include paths
 - Changelog for Husarion extension is now visible in VSCode
 
 ## [1.5.11] - 2018-07-30

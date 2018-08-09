@@ -30,6 +30,9 @@ async function getVarsInfo(): Promise<Map<String, Array<String>>> {
             }
         }
     }
+    var myExtDir = vscode.extensions.getExtension("husarion.husarion").extensionPath;
+    vars["include"].push(myExtDir + "/sdk/include/hCloudClient");
+    vars["include"].push(myExtDir + "/sdk/include/hROS");
     return vars;
 }
 
@@ -121,7 +124,7 @@ async function reloadProjectInfo(self: Extension, hard: boolean = false) {
 
     if (!self.statusBarReady)
         initStatusBar(self);
-    
+
     if (!fs.existsSync(vscode.workspace.rootPath + "/CMakeCache.txt")) {
         await executeCommand("Husarion: initialize build",
             [getToolsPath() + "cmake", ".",
@@ -129,14 +132,14 @@ async function reloadProjectInfo(self: Extension, hard: boolean = false) {
                 "-DPORT=stm32",
                 "-DBOARD_VERSION=1.0.0",
                 "-DBOARD_TYPE=core2",
-                "-DHFRAMEWORK_PATH=" + extensionPath + "/sdk"], getExecuteOptions());
+            "-DHFRAMEWORK_PATH=" + extensionPath + "/sdk"], getExecuteOptions());
     } else {
         let cmakeCache = fs.readFileSync(vscode.workspace.rootPath + "/CMakeCache.txt");
         let usesBuiltinSdk = cmakeCache.toString("utf-8").split("\n")
             .filter((line) => line.startsWith("HFRAMEWORK_PATH:") && line.indexOf(".vscode") != -1).length != 0;
 
         await executeCommand("Husarion: reload build", [getToolsPath() + "cmake", "."].concat(
-                usesBuiltinSdk ? ["-DHFRAMEWORK_PATH=" + extensionPath + "/sdk"] : []), getExecuteOptions(), true);
+            usesBuiltinSdk ? ["-DHFRAMEWORK_PATH=" + extensionPath + "/sdk"] : []), getExecuteOptions(), true);
     }
 
     let vars = await getVarsInfo();
@@ -150,6 +153,11 @@ async function reloadProjectInfo(self: Extension, hard: boolean = false) {
             {
                 "name": "Husarion",
                 "includePath": vars["include"].concat(os.platform() == 'win32' ? [getToolsPath() + "/../arm-none-eabi/include/"] : ["/usr/include"]), // TODO: windows
+                "defines": [
+                    "BOARD_TYPE=CORE2",
+                    "PORT=STM32",
+                    "BOARD_VERSION=1.0.0"
+                ],
                 "browse": {
                     "limitSymbolsToIncludedHeaders": true,
                     "databaseFilename": ""
@@ -205,17 +213,17 @@ async function reloadProjectInfo(self: Extension, hard: boolean = false) {
 
     if (process.platform == "win32") {
         fs.writeFileSync(vscodeDir + "/debugger.bat",
-`set PATH=${getToolsPath()};%PATH%
+            `set PATH=${getToolsPath()};%PATH%
 cd ${vscode.workspace.rootPath} || exit 1
 start /wait st-flash write ${mainExeName}.bin 0x08010000 || exit 1
 start st-util
 arm-none-eabi-gdb %*`);
     } else {
         const termCommand = (process.platform == "darwin") ?
-         `osascript -e 'tell application "Terminal" to activate do script "cat ${vscode.workspace.rootPath}/.term"'` : 
-         `x-terminal-emulator -e "cat $PWD/.term" &`;
+            `osascript -e 'tell application "Terminal" to activate do script "cat ${vscode.workspace.rootPath}/.term"'` :
+            `x-terminal-emulator -e "cat $PWD/.term" &`;
         fs.writeFileSync(vscodeDir + "/debugger.bat",
-        `#!/bin/bash
+            `#!/bin/bash
         cd ${vscode.workspace.rootPath} || exit 1
         rm .term 2>/dev/null
         mkfifo .term
@@ -250,7 +258,7 @@ arm-none-eabi-gdb %*`);
                 "stopAtEntry": false,
                 "cwd": "${workspaceRoot}",
                 "env": {
-                    "GDBWRAPPER_FLASH": "true",   
+                    "GDBWRAPPER_FLASH": "true",
                 },
                 "miDebuggerPath": vscodeDir + "/debugger.bat",
                 "miDebuggerServerAddress": "localhost:4242",
@@ -310,7 +318,7 @@ function openTerminal(name: string, ninjaCmd: string) {
     let terminal = vscode.window.createTerminal(name, defaultShell);
     terminal.show(true);
     if (process.platform == "win32") {
-        terminal.sendText("set PATH=%PATH%;" + getToolsPath());  
+        terminal.sendText("set PATH=%PATH%;" + getToolsPath());
         if (ninjaCmd)
             terminal.sendText("\"" + getToolsPath() + "ninja\" " + ninjaCmd);
     } else {
