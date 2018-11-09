@@ -2,7 +2,7 @@
   "name": "husarion",
   "displayName": "Husarion",
   "description": "Create apps for Husarion devices",
-  "version": "1.5.10",
+  "version": "1.5.12",
   "publisher": "husarion",
   "repository": "https://github.com/husarion",
   "engines": {
