@@ -86,7 +86,7 @@ async function downloadToolsIfNeeded() {
         await executeCommand("Extract Husarion Tools", [installerPath, "-y", "-o" + extensionPath + "/../../"], {}, true);
         channel.append("Done\n");
         fs.unlinkSync(installerPath);
-        fs.writeFile(versionFile, HUSARION_TOOLS_VERSION);
+        fs.writeFileSync(versionFile, HUSARION_TOOLS_VERSION);
     }
 }
 
