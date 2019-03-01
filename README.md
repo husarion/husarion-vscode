@@ -12,21 +12,26 @@ On Windows, all dependencies will be downloaded automatically. All you have to d
 
 On Linux, this extension requires you to install CORE2 toolchain:
 
-    On Ubuntu/Debian: sudo apt-get install gcc-arm-none-eabi cmake libusb-1.0-0 g++ ninja-build
-    On Arch install gcc-arm-none-eabi-bin, cmake, ninja-build and libusb..
-    If your distribution doesn’t have compiler package for arm-none-eabi architecture, install the binary package from https://launchpad.net/gcc-arm-embedded
+ * On Ubuntu/Debian: sudo apt-get install gcc-arm-none-eabi cmake libusb-1.0-0 g++ ninja-build
+ * On Arch install gcc-arm-none-eabi-bin, cmake, ninja-build and libusb..
+ * If your distribution doesn’t have compiler package for arm-none-eabi architecture, install the binary package from https://launchpad.net/gcc-arm-embedded
 
-On Mac, you have to fallow steps below:
+On Mac, you have to follow the steps below:
 
-    If you don't have brew installed, follow the instructions at https://brew.sh
-    Install C++ cross-compiler - execute in the terminal:
+If you don't have brew installed, follow the instructions at https://brew.sh
+Install C++ cross-compiler - execute in the terminal:
+
     $ brew tap PX4/homebrew-px4
     $ brew update
     $ brew install gcc-arm-none-eabi-48
-    Install CMake, Ninja and STLink:
+    
+Install CMake, Ninja and STLink:
+    
     $ brew install cmake ninja stlink
-    Download and install VS Code from https://code.visualstudio.com/
-    Launch VS Code, press Ctrl-Shift-X, find "husarion" extension and click "Install". VS Code will ask you if you want to install also the dependencies - agree. Reload VSCode.
+
+Download and install VS Code from https://code.visualstudio.com/
+
+Launch VS Code, press Ctrl-Shift-X, find "husarion" extension and click "Install". VS Code will ask you if you want to install also the dependencies - agree. Reload VSCode.
 
 
 ## Using the extension ##
